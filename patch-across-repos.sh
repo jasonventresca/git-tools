@@ -12,7 +12,7 @@ declare -A MDX_BLOG_ROOT_PATHS=(
 if [ $# -lt 3 ]; then
     echo "Usage: $0 <project_name> <mode> <commit_sha1> [commit_sha2] ..."
     echo "Available projects: ${!MDX_BLOG_ROOT_PATHS[@]}"
-    echo "Available modes: copy, edit"
+    echo "Available modes: copy, edit, commit"
     exit 1
 fi
 
@@ -29,8 +29,8 @@ if [[ ! -v MDX_BLOG_ROOT_PATHS["$project_name"] ]]; then
 fi
 
 # Validate mode
-if [[ "$mode" != "copy" && "$mode" != "edit" ]]; then
-    echo "Error: Mode must be either 'copy' or 'edit'"
+if [[ "$mode" != "copy" && "$mode" != "edit" && "$mode" != "commit" ]]; then
+    echo "Error: Mode must be either 'copy', 'edit', or 'commit'"
     exit 1
 fi
 
@@ -167,6 +167,23 @@ edit_file_mode() {
     fi
 }
 
+# Function to handle git add and commit for a single project
+commit_project() {
+    local proj_key="$1"
+    local proj_path="$2"
+
+    echo "Working on repository: $proj_key ($proj_path)"
+    echo "---"
+
+    cd "$proj_path"
+    git add -p
+    git commit
+
+    echo
+    echo "Finished with $proj_key"
+    echo
+}
+
 # For each modified file, either copy or edit based on mode
 if [[ "$mode" == "copy" ]]; then
     # Copy mode: iterate over files
@@ -195,25 +212,18 @@ elif [[ "$mode" == "edit" ]]; then
         proj_path="${MDX_BLOG_ROOT_PATHS[$proj_key]}"
         edit_file_mode "$proj_key" "$proj_path"
     done
-fi
 
-# Loop through each git repo to stage and commit changes
-echo "========================================="
-echo "Now staging and committing changes in each repository..."
-echo "========================================="
-echo
-
-for proj_key in "${!MDX_BLOG_ROOT_PATHS[@]}"; do
-    proj_path="${MDX_BLOG_ROOT_PATHS[$proj_key]}"
-    echo "Working on repository: $proj_key ($proj_path)"
-    #sleep 3
-
-    cd "$proj_path"
-    #git add -p && git commit
-    echo 'git add -p && git commit'
-
-    echo "---"
+elif [[ "$mode" == "commit" ]]; then
+    # Commit mode: loop through each git repo to stage and commit changes
+    echo "========================================="
+    echo "Now staging and committing changes in each repository..."
+    echo "========================================="
     echo
-done
 
-echo "All repositories processed!"
+    for proj_key in "${!MDX_BLOG_ROOT_PATHS[@]}"; do
+        proj_path="${MDX_BLOG_ROOT_PATHS[$proj_key]}"
+        commit_project "$proj_key" "$proj_path"
+    done
+
+    echo "All repositories processed!"
+fi
