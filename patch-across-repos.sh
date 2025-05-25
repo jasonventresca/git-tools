@@ -159,7 +159,7 @@ edit_file_mode() {
     if [ ${#vim_args[@]} -gt 1 ]; then
         echo "Opening vim for source project '$project_name' and destination project '$dest_project_key' ..."
         echo
-        #sleep 3
+        sleep 2
         echo vim "${vim_args[@]}"
         echo
         echo "---"
