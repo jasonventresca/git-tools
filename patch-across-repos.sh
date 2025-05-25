@@ -28,7 +28,7 @@ fi
 
 project_path="${MDX_BLOG_ROOT_PATHS["$project_name"]}"
 
-# Change to the specified project directory
+# Change to the source project directory
 cd "$project_path"
 
 # Find the git repository root and calculate the relative path from repo root to project directory
@@ -59,7 +59,7 @@ done
 patch_hash=$(echo "${commit_shas[*]}" | md5sum | cut -d' ' -f1 | cut -c1-8)
 patch_file="$HOME/patch_${project_name}_${patch_hash}.patch"
 
-# Create a combined patch for all specified commits
+# Create a combined patch for all source commits
 if [ ${#commit_shas[@]} -eq 1 ]; then
     # Single commit - use format-patch
     git format-patch --stdout "${commit_shas[0]}^..${commit_shas[0]}" > "$patch_file"
@@ -91,7 +91,20 @@ for file in "${modified_files_set[@]}"; do
     #echo "Relative file path: $relative_file_path"
 
     # Add the file from each project (including the source project)
+    # First, add the file from the source project
+    src_proj_path="${MDX_BLOG_ROOT_PATHS[$project_name]}"
+    src_file_path="$src_proj_path/$relative_file_path"
+    if [[ -f "$src_file_path" ]]; then
+        vim_args+=("$src_file_path")
+    fi
+
+    # Then add files from other projects
     for proj_key in "${!MDX_BLOG_ROOT_PATHS[@]}"; do
+        # Skip the source project since we already added it
+        if [[ "$proj_key" == "$project_name" ]]; then
+            continue
+        fi
+
         proj_path="${MDX_BLOG_ROOT_PATHS[$proj_key]}"
         file_path="$proj_path/$relative_file_path"
         #echo "file_path: $file_path"
@@ -113,3 +126,24 @@ for file in "${modified_files_set[@]}"; do
 
     fi
 done
+
+# Loop through each git repo to stage and commit changes
+echo "========================================="
+echo "Now staging and committing changes in each repository..."
+echo "========================================="
+echo
+
+for proj_key in "${!MDX_BLOG_ROOT_PATHS[@]}"; do
+    proj_path="${MDX_BLOG_ROOT_PATHS[$proj_key]}"
+    echo "Working on repository: $proj_key ($proj_path)"
+    #sleep 3
+
+    cd "$proj_path"
+    #git add -p && git commit
+    echo 'git add -p && git commit'
+
+    echo "---"
+    echo
+done
+
+echo "All repositories processed!"
