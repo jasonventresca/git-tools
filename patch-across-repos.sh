@@ -56,7 +56,8 @@ for commit in "${commit_shas[@]}"; do
 done
 
 # Create patch file in $HOME
-patch_file="$HOME/patch_${project_name}_$(date +%Y%m%d_%H%M%S).patch"
+patch_hash=$(echo "${commit_shas[*]}" | md5sum | cut -d' ' -f1 | cut -c1-8)
+patch_file="$HOME/patch_${project_name}_${patch_hash}.patch"
 
 # Create a combined patch for all specified commits
 if [ ${#commit_shas[@]} -eq 1 ]; then
@@ -72,7 +73,8 @@ fi
 
 echo "Created patch file: $patch_file"
 echo "Modified files:"
-printf '%s\n' "${modified_files_set[@]}"
+printf '  %s\n' "${modified_files_set[@]}"
+echo
 
 # For each modified file, open vim with patch and corresponding files from all projects
 for file in "${modified_files_set[@]}"; do
@@ -102,7 +104,12 @@ for file in "${modified_files_set[@]}"; do
     # Only run vim if we have files to edit beyond just the patch
     if [ ${#vim_args[@]} -gt 1 ]; then
         echo "Opening vim across projects to help you apply the patch for file: $relative_file_path ..."
-        sleep 3
+        echo
+        #sleep 3
         echo vim "${vim_args[@]}"
+        echo
+        echo "---"
+        echo
+
     fi
 done
