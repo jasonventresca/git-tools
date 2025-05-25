@@ -10,27 +10,27 @@ declare -A MDX_BLOG_ROOT_PATHS=(
 
 # Check arguments
 if [ $# -lt 3 ]; then
-    echo "Usage: $0 <project_name> <mode> <commit_sha1> [commit_sha2] ..."
-    echo "Available projects: ${!MDX_BLOG_ROOT_PATHS[@]}"
+    echo "Usage: $0 <mode> <project_name> <commit_sha1> [commit_sha2] ..."
     echo "Available modes: copy, edit, commit, status, blow-away"
+    echo "Available projects: ${!MDX_BLOG_ROOT_PATHS[@]}"
     exit 1
 fi
 
-project_name="$1"
-mode="$2"
+mode="$1"
+project_name="$2"
 shift 2
 commit_shas=("$@")
+
+# Validate mode
+if [[ "$mode" != "copy" && "$mode" != "edit" && "$mode" != "commit" && "$mode" != "status" && "$mode" != "blow-away" ]]; then
+    echo "Error: Mode must be one of: copy, edit, commit, status, blow-away"
+    exit 1
+fi
 
 # Validate project name
 if [[ ! -v MDX_BLOG_ROOT_PATHS["$project_name"] ]]; then
     echo "Error: Project '$project_name' not found in MDX_BLOG_ROOT_PATHS"
     echo "Available projects: ${!MDX_BLOG_ROOT_PATHS[@]}"
-    exit 1
-fi
-
-# Validate mode
-if [[ "$mode" != "copy" && "$mode" != "edit" && "$mode" != "commit" && "$mode" != "status" && "$mode" != "blow-away" ]]; then
-    echo "Error: Mode must be one of: copy, edit, commit, status, blow-away"
     exit 1
 fi
 
