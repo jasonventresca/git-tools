@@ -123,7 +123,7 @@ edit_file_mode() {
     # Edit mode: open vim with patch and corresponding files
     vim_args=("$patch_file")
 
-    # For each modified file, add source file then destination file
+    # First, add all source files
     for file in "${modified_files_set[@]}"; do
         # Strip the project prefix to get the file path relative to a common structure
         if [[ -n "$project_prefix" && "$file" == "$project_prefix"* ]]; then
@@ -136,6 +136,16 @@ edit_file_mode() {
         src_file_path="$project_path/$relative_file_path"
         if [[ -f "$src_file_path" ]]; then
             vim_args+=("$src_file_path")
+        fi
+    done
+
+    # Then, add all destination files
+    for file in "${modified_files_set[@]}"; do
+        # Strip the project prefix to get the file path relative to a common structure
+        if [[ -n "$project_prefix" && "$file" == "$project_prefix"* ]]; then
+            relative_file_path="${file#$project_prefix}"
+        else
+            relative_file_path="$file"
         fi
 
         # Add destination file
