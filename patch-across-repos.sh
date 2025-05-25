@@ -9,20 +9,28 @@ declare -A MDX_BLOG_ROOT_PATHS=(
 )
 
 # Check arguments
-if [ $# -lt 2 ]; then
-    echo "Usage: $0 <project_name> <commit_sha1> [commit_sha2] ..."
+if [ $# -lt 3 ]; then
+    echo "Usage: $0 <project_name> <mode> <commit_sha1> [commit_sha2] ..."
     echo "Available projects: ${!MDX_BLOG_ROOT_PATHS[@]}"
+    echo "Available modes: copy, edit"
     exit 1
 fi
 
 project_name="$1"
-shift
+mode="$2"
+shift 2
 commit_shas=("$@")
 
 # Validate project name
 if [[ ! -v MDX_BLOG_ROOT_PATHS["$project_name"] ]]; then
     echo "Error: Project '$project_name' not found in MDX_BLOG_ROOT_PATHS"
     echo "Available projects: ${!MDX_BLOG_ROOT_PATHS[@]}"
+    exit 1
+fi
+
+# Validate mode
+if [[ "$mode" != "copy" && "$mode" != "edit" ]]; then
+    echo "Error: Mode must be either 'copy' or 'edit'"
     exit 1
 fi
 
@@ -76,10 +84,8 @@ echo "Modified files:"
 printf '  %s\n' "${modified_files_set[@]}"
 echo
 
-# For each modified file, open vim with patch and corresponding files from all projects
+# For each modified file, either copy or edit based on mode
 for file in "${modified_files_set[@]}"; do
-    vim_args=("$patch_file")
-
     # Strip the project prefix to get the file path relative to a common structure
     if [[ -n "$project_prefix" && "$file" == "$project_prefix"* ]]; then
         relative_file_path="${file#$project_prefix}"
@@ -90,40 +96,74 @@ for file in "${modified_files_set[@]}"; do
     #echo "Original file: $file"
     #echo "Relative file path: $relative_file_path"
 
-    # Add the file from each project (including the source project)
-    # First, add the file from the source project
-    src_proj_path="${MDX_BLOG_ROOT_PATHS[$project_name]}"
-    src_file_path="$src_proj_path/$relative_file_path"
-    if [[ -f "$src_file_path" ]]; then
-        vim_args+=("$src_file_path")
-    fi
+    if [[ "$mode" == "copy" ]]; then
+        # Copy mode: copy the file from source project to other projects
+        src_proj_path="${MDX_BLOG_ROOT_PATHS[$project_name]}"
+        src_file_path="$src_proj_path/$relative_file_path"
 
-    # Then add files from other projects
-    for proj_key in "${!MDX_BLOG_ROOT_PATHS[@]}"; do
-        # Skip the source project since we already added it
-        if [[ "$proj_key" == "$project_name" ]]; then
-            continue
+        if [[ -f "$src_file_path" ]]; then
+            echo "Copying file: $relative_file_path"
+
+            for proj_key in "${!MDX_BLOG_ROOT_PATHS[@]}"; do
+                # Skip the source project
+                if [[ "$proj_key" == "$project_name" ]]; then
+                    continue
+                fi
+
+                proj_path="${MDX_BLOG_ROOT_PATHS[$proj_key]}"
+                dest_file_path="$proj_path/$relative_file_path"
+
+                # Create directory if it doesn't exist
+                dest_dir=$(dirname "$dest_file_path")
+                mkdir -p "$dest_dir"
+
+                # Copy the file
+                cp "$src_file_path" "$dest_file_path"
+                echo "  -> $proj_key: $dest_file_path"
+            done
+            echo
+        else
+            echo "Warning: Source file not found: $src_file_path"
         fi
 
-        proj_path="${MDX_BLOG_ROOT_PATHS[$proj_key]}"
-        file_path="$proj_path/$relative_file_path"
-        #echo "file_path: $file_path"
-        if [[ -f "$file_path" ]]; then
-            vim_args+=("$file_path")
+    elif [[ "$mode" == "edit" ]]; then
+        # Edit mode: open vim with patch and corresponding files
+        vim_args=("$patch_file")
+
+        # First, add the file from the source project
+        src_proj_path="${MDX_BLOG_ROOT_PATHS[$project_name]}"
+        src_file_path="$src_proj_path/$relative_file_path"
+        if [[ -f "$src_file_path" ]]; then
+            vim_args+=("$src_file_path")
         fi
-    done
-    #echo "vim_args: ${vim_args[@]}"
 
-    # Only run vim if we have files to edit beyond just the patch
-    if [ ${#vim_args[@]} -gt 1 ]; then
-        echo "Opening vim across projects to help you apply the patch for file: $relative_file_path ..."
-        echo
-        #sleep 3
-        echo vim "${vim_args[@]}"
-        echo
-        echo "---"
-        echo
+        # Then add files from other projects
+        for proj_key in "${!MDX_BLOG_ROOT_PATHS[@]}"; do
+            # Skip the source project since we already added it
+            if [[ "$proj_key" == "$project_name" ]]; then
+                continue
+            fi
 
+            proj_path="${MDX_BLOG_ROOT_PATHS[$proj_key]}"
+            file_path="$proj_path/$relative_file_path"
+            #echo "file_path: $file_path"
+            if [[ -f "$file_path" ]]; then
+                vim_args+=("$file_path")
+            fi
+        done
+        #echo "vim_args: ${vim_args[@]}"
+
+        # Only run vim if we have files to edit beyond just the patch
+        if [ ${#vim_args[@]} -gt 1 ]; then
+            echo "Opening vim across projects to help you apply the patch for file: $relative_file_path ..."
+            echo
+            #sleep 3
+            echo vim "${vim_args[@]}"
+            echo
+            echo "---"
+            echo
+
+        fi
     fi
 done
 
