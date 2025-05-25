@@ -12,7 +12,7 @@ declare -A MDX_BLOG_ROOT_PATHS=(
 if [ $# -lt 3 ]; then
     echo "Usage: $0 <project_name> <mode> <commit_sha1> [commit_sha2] ..."
     echo "Available projects: ${!MDX_BLOG_ROOT_PATHS[@]}"
-    echo "Available modes: copy, edit, commit"
+    echo "Available modes: copy, edit, commit, status, blow-away"
     exit 1
 fi
 
@@ -29,8 +29,8 @@ if [[ ! -v MDX_BLOG_ROOT_PATHS["$project_name"] ]]; then
 fi
 
 # Validate mode
-if [[ "$mode" != "copy" && "$mode" != "edit" && "$mode" != "commit" ]]; then
-    echo "Error: Mode must be either 'copy', 'edit', or 'commit'"
+if [[ "$mode" != "copy" && "$mode" != "edit" && "$mode" != "commit" && "$mode" != "status" && "$mode" != "blow-away" ]]; then
+    echo "Error: Mode must be one of: copy, edit, commit, status, blow-away"
     exit 1
 fi
 
@@ -184,6 +184,35 @@ commit_project() {
     echo
 }
 
+# Function to handle git status for a single project
+status_project() {
+    local proj_key="$1"
+    local proj_path="$2"
+
+    echo "Status for repository: $proj_key ($proj_path)"
+    echo "---"
+
+    cd "$proj_path"
+    git status
+
+    echo
+}
+
+# Function to handle git checkout -f for a single project
+blow_away_project() {
+    local proj_key="$1"
+    local proj_path="$2"
+
+    echo "Blowing away changes in repository: $proj_key ($proj_path)"
+    echo "---"
+
+    cd "$proj_path"
+    git checkout -f
+
+    echo "Changes blown away in $proj_key"
+    echo
+}
+
 # For each modified file, either copy or edit based on mode
 if [[ "$mode" == "copy" ]]; then
     # Copy mode: iterate over files
@@ -223,6 +252,34 @@ elif [[ "$mode" == "commit" ]]; then
     for proj_key in "${!MDX_BLOG_ROOT_PATHS[@]}"; do
         proj_path="${MDX_BLOG_ROOT_PATHS[$proj_key]}"
         commit_project "$proj_key" "$proj_path"
+    done
+
+    echo "All repositories processed!"
+
+elif [[ "$mode" == "status" ]]; then
+    # Status mode: loop through each git repo to get status
+    echo "========================================="
+    echo "Now getting status for each repository..."
+    echo "========================================="
+    echo
+
+    for proj_key in "${!MDX_BLOG_ROOT_PATHS[@]}"; do
+        proj_path="${MDX_BLOG_ROOT_PATHS[$proj_key]}"
+        status_project "$proj_key" "$proj_path"
+    done
+
+    echo "All repositories processed!"
+
+elif [[ "$mode" == "blow-away" ]]; then
+    # Blow away mode: loop through each git repo to blow away changes
+    echo "========================================="
+    echo "Now blowing away changes in each repository..."
+    echo "========================================="
+    echo
+
+    for proj_key in "${!MDX_BLOG_ROOT_PATHS[@]}"; do
+        proj_path="${MDX_BLOG_ROOT_PATHS[$proj_key]}"
+        blow_away_project "$proj_key" "$proj_path"
     done
 
     echo "All repositories processed!"
