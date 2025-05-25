@@ -115,38 +115,39 @@ copy_file_mode() {
     fi
 }
 
-# Function to handle edit mode for a single file
+# Function to handle edit mode for a single destination project
 edit_file_mode() {
-    local relative_file_path="$1"
-    local src_file_path="$2"
+    local dest_project_key="$1"
+    local dest_project_path="$2"
 
     # Edit mode: open vim with patch and corresponding files
     vim_args=("$patch_file")
 
-    # First, add the file from the source project
-    if [[ -f "$src_file_path" ]]; then
-        vim_args+=("$src_file_path")
-    fi
-
-    # Then add files from other projects
-    for proj_key in "${!MDX_BLOG_ROOT_PATHS[@]}"; do
-        # Skip the source project since we already added it
-        if [[ "$proj_key" == "$project_name" ]]; then
-            continue
+    # For each modified file, add source file then destination file
+    for file in "${modified_files_set[@]}"; do
+        # Strip the project prefix to get the file path relative to a common structure
+        if [[ -n "$project_prefix" && "$file" == "$project_prefix"* ]]; then
+            relative_file_path="${file#$project_prefix}"
+        else
+            relative_file_path="$file"
         fi
 
-        proj_path="${MDX_BLOG_ROOT_PATHS[$proj_key]}"
-        file_path="$proj_path/$relative_file_path"
-        #echo "file_path: $file_path"
-        if [[ -f "$file_path" ]]; then
-            vim_args+=("$file_path")
+        # Add source file
+        src_file_path="$project_path/$relative_file_path"
+        if [[ -f "$src_file_path" ]]; then
+            vim_args+=("$src_file_path")
+        fi
+
+        # Add destination file
+        dest_file_path="$dest_project_path/$relative_file_path"
+        if [[ -f "$dest_file_path" ]]; then
+            vim_args+=("$dest_file_path")
         fi
     done
-    #echo "vim_args: ${vim_args[@]}"
 
     # Only run vim if we have files to edit beyond just the patch
     if [ ${#vim_args[@]} -gt 1 ]; then
-        echo "Opening vim across projects to help you apply the patch for file: $relative_file_path ..."
+        echo "Opening vim for source project '$project_name' and destination project '$dest_project_key' ..."
         echo
         #sleep 3
         echo vim "${vim_args[@]}"
@@ -157,24 +158,34 @@ edit_file_mode() {
 }
 
 # For each modified file, either copy or edit based on mode
-for file in "${modified_files_set[@]}"; do
-    # Strip the project prefix to get the file path relative to a common structure
-    if [[ -n "$project_prefix" && "$file" == "$project_prefix"* ]]; then
-        relative_file_path="${file#$project_prefix}"
-    else
-        relative_file_path="$file"
-    fi
+if [[ "$mode" == "copy" ]]; then
+    # Copy mode: iterate over files
+    for file in "${modified_files_set[@]}"; do
+        # Strip the project prefix to get the file path relative to a common structure
+        if [[ -n "$project_prefix" && "$file" == "$project_prefix"* ]]; then
+            relative_file_path="${file#$project_prefix}"
+        else
+            relative_file_path="$file"
+        fi
 
-    #echo "Original file: $file"
-    #echo "Relative file path: $relative_file_path"
+        #echo "Original file: $file"
+        #echo "Relative file path: $relative_file_path"
 
-    if [[ "$mode" == "copy" ]]; then
         copy_file_mode "$relative_file_path" "$project_path/$relative_file_path"
+    done
 
-    elif [[ "$mode" == "edit" ]]; then
-        edit_file_mode "$relative_file_path" "$project_path/$relative_file_path"
-    fi
-done
+elif [[ "$mode" == "edit" ]]; then
+    # Edit mode: iterate over destination projects
+    for proj_key in "${!MDX_BLOG_ROOT_PATHS[@]}"; do
+        # Skip the source project
+        if [[ "$proj_key" == "$project_name" ]]; then
+            continue
+        fi
+
+        proj_path="${MDX_BLOG_ROOT_PATHS[$proj_key]}"
+        edit_file_mode "$proj_key" "$proj_path"
+    done
+fi
 
 # Loop through each git repo to stage and commit changes
 echo "========================================="
