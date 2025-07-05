@@ -34,9 +34,10 @@ do
     esac
 done
 
-# Important: You need to be on main first, so that the
+# Important: You need to be on (the latest) main first, so that the
 # 'git branch --merged ...' command shows you what's merged into *main*.
 git checkout main
+git pull origin main
 echo '---'
 
 # Delete merged local branches
@@ -57,6 +58,11 @@ echo '---'
 
 # Delete merged remote branches
 echo "Processing remote branches..."
+echo "-> Fetching and pruning origin, to get an up-to-date picture before comparison."
+git fetch
+git remote prune origin
+
+echo "-> Comparing remote (origin) branches against the 'main' branch."
 $dry_run && echo "Dry run: would have run the following commands:"
 for b in $(git branch --remote --merged | grep -v '\borigin/main\b' | sed 's#origin/##')
 do
