@@ -43,7 +43,7 @@ echo '---'
 # Delete merged local branches
 echo "Processing local branches..."
 $dry_run && echo "Dry run: would have run the following commands:"
-for b in $(git branch --merged | grep -v '\bmain\b')
+for b in $(git branch --merged | grep -v '\bmain\b' | sed 's/^[*+ ]*//')
 do
     cmd="git branch -D $b"
     if [ "$dry_run" = true ]; then
